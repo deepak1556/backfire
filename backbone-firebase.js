@@ -209,12 +209,30 @@ Backbone.Firebase.Collection = Backbone.Collection.extend({
   },
 
   add: function(models, options) {
-    var parsed = this._parseModels(models);
+    if(typeof options == "function"){
+	options = {
+	    success : options
+	}
+    } else{
+	options = {
+	    success : this.oncomplete
+	}
+    }
+
+      var parsed = this._parseModels(models, options);
     for (var i = 0; i < parsed.length; i++) {
       var model = parsed[i];
-      this.firebase.ref().child(model.id).set(model);
+	this.firebase.ref().child(model.id).set(model, function(err) {
+	    if (!err) {
+		if(options.state == "key pushed")
+                    var val = model.toJSON();
+		options.success(null, val);
+	    } else {
+		options.success("Could not update model " + model.id, null);
+	    }
+	});
     }
-    // TODO: Implement options.success
+    // Implemented options.success
   },
 
   remove: function(models, options) {
@@ -259,6 +277,8 @@ Backbone.Firebase.Collection = Backbone.Collection.extend({
       }
       if (!model.id) {
         model.id = this.firebase.ref().push().name();
+        if(model.id !== undefined)
+          options.state = "key pushed"; 
       }
       ret.push(model);
     }
